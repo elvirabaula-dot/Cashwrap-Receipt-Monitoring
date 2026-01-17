@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -19,7 +20,7 @@ export default function Home() {
   const handleLogin = (username: string) => {
     const found = users.find(u => u.username === username);
     if (found) setUser(found);
-    else alert('Invalid username. Try "admin", or any created branch username.');
+    else alert('Unauthorized: Credential not found. Please contact your system administrator.');
   };
 
   const handleLogout = () => setUser(null);

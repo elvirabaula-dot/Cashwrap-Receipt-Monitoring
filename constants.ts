@@ -2,7 +2,7 @@
 import { UserRole, ReceiptType, OrderStatus, User, ReceiptInventory, ReceiptOrder, WarehouseStock } from './types';
 
 export const INITIAL_USERS: User[] = [
-  { id: '1', username: 'admin', role: UserRole.ADMIN },
+  { id: '1', username: 'CW@Admin', role: UserRole.ADMIN },
   { id: '2', username: 'manila_br', role: UserRole.BRANCH, branchName: 'Megamall', company: 'PMCI' },
   { id: '3', username: 'cebu_br', role: UserRole.BRANCH, branchName: 'Seaside Cebu', company: 'PMCI' },
   { id: '4', username: 'davao_br', role: UserRole.BRANCH, branchName: 'SM Davao', company: 'PEHI' },

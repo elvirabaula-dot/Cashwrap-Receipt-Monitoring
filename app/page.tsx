@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -41,7 +42,7 @@ export default function Home() {
   };
 
   const handleDeleteUser = (userId: string) => {
-    if (confirm('Are you sure you want to delete this branch? This will remove their account access.')) {
+    if (confirm('Are you sure you want to delete this branch? This will remove their account access and data visibility.')) {
       setUsers(prev => prev.filter(u => u.id !== userId));
     }
   };
@@ -81,18 +82,31 @@ export default function Home() {
   };
 
   const shipOrder = (orderId: string, startSeries: number) => {
-    const order = orders.find(o => o.id === orderId);
-    if (!order) return;
-    const unitsPerPack = order.type === ReceiptType.SALES_INVOICE ? 500 : 50;
-    const totalReceipts = order.quantityUnits * unitsPerPack;
-    const endSeries = startSeries + totalReceipts - 1;
+    setOrders(prev => prev.map(o => {
+      if (o.id === orderId) {
+        const perUnit = o.type === ReceiptType.SALES_INVOICE ? 500 : 50;
+        const total = o.quantityUnits * perUnit;
+        const end = startSeries + total - 1;
+        
+        // Decrement warehouse stock for that specific branch/type
+        setWarehouse(curr => {
+          const branchItems = curr[o.branchId] || [];
+          const updatedItems = branchItems.map(item => 
+            item.type === o.type ? { ...item, totalUnits: Math.max(0, item.totalUnits - o.quantityUnits) } : item
+          );
+          return { ...curr, [o.branchId]: updatedItems };
+        });
 
-    setOrders(prev => prev.map(o => o.id === orderId ? { 
-      ...o, 
-      status: OrderStatus.IN_TRANSIT, 
-      seriesStart: startSeries,
-      seriesEnd: endSeries
-    } : o));
+        return { 
+          ...o, 
+          status: OrderStatus.IN_TRANSIT, 
+          seriesStart: startSeries, 
+          seriesEnd: end,
+          deliveryDate: new Date().toISOString().split('T')[0]
+        };
+      }
+      return o;
+    }));
   };
 
   const markAsDelivered = (orderId: string) => {
@@ -132,6 +146,50 @@ export default function Home() {
     });
   };
 
+  const handleRequestFromSupplier = (branchId: string, type: ReceiptType, units: number) => {
+    const newOrder: SupplierOrder = {
+      id: `SUP-${Date.now()}`,
+      branchId,
+      type,
+      quantityUnits: units,
+      status: SupplierOrderStatus.REQUESTED,
+      requestDate: new Date().toISOString().split('T')[0]
+    };
+    setSupplierOrders(prev => [newOrder, ...prev]);
+  };
+
+  const handleUpdateSupplierStatus = (orderId: string, status: SupplierOrderStatus) => {
+    setSupplierOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
+  };
+
+  const handleConfirmSupplierDelivery = (orderId: string, details: any) => {
+    setSupplierOrders(prev => prev.map(o => {
+      if (o.id === orderId) {
+        // Increment Warehouse Stock
+        setWarehouse(curr => {
+          const branchItems = curr[o.branchId] || [];
+          const existing = branchItems.find(i => i.type === o.type);
+          let updatedItems;
+          
+          if (existing) {
+            updatedItems = branchItems.map(i => i.type === o.type ? { ...i, totalUnits: i.totalUnits + o.quantityUnits } : i);
+          } else {
+            updatedItems = [...branchItems, {
+              type: o.type,
+              branchId: o.branchId,
+              totalUnits: o.quantityUnits,
+              receiptsPerUnit: o.type === ReceiptType.SALES_INVOICE ? 500 : 50,
+              unitLabel: o.type === ReceiptType.SALES_INVOICE ? 'Box' : 'Booklet'
+            }];
+          }
+          return { ...curr, [o.branchId]: updatedItems };
+        });
+        return { ...o, ...details, status: SupplierOrderStatus.DELIVERED };
+      }
+      return o;
+    }));
+  };
+
   if (!user) return <Login onLogin={handleLogin} />;
 
   return (
@@ -149,10 +207,10 @@ export default function Home() {
             onShip={shipOrder}
             onMarkDelivered={markAsDelivered}
             onReplenishWarehouse={(b, t, u) => {}} 
-            onRequestFromSupplier={(b, t, u) => {}}
-            onUpdateSupplierStatus={(id, s) => {}}
-            onUpdateSupplierDetails={(id, up) => {}}
-            onConfirmSupplierDelivery={(id, det) => {}}
+            onRequestFromSupplier={handleRequestFromSupplier}
+            onUpdateSupplierStatus={handleUpdateSupplierStatus}
+            onUpdateSupplierDetails={(id, up) => setSupplierOrders(p => p.map(o => o.id === id ? { ...o, ...up } : o))}
+            onConfirmSupplierDelivery={handleConfirmSupplierDelivery}
             onAddBranch={handleAddBranch}
             onUpdateUser={handleUpdateUser}
             onDeleteUser={handleDeleteUser}
@@ -164,7 +222,7 @@ export default function Home() {
             orders={orders.filter(o => o.branchId === user.id)}
             onUpdateSeries={updateLastUsed}
             onRequestReceipts={requestReceipts}
-            onUpdateRequest={(id, t, u) => {}}
+            onUpdateRequest={(id, t, u) => setOrders(p => p.map(o => o.id === id ? { ...o, type: t, quantityUnits: u } : o))}
             onConfirmReceipt={confirmReceipt}
             warehouseConfig={warehouse[user.id] || []}
           />

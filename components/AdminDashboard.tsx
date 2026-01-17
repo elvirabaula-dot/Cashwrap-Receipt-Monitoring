@@ -80,23 +80,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const getBranchName = (branchId: string) => users.find(u => u.id === branchId)?.branchName || `Branch ${branchId}`;
   const getBranchCompany = (branchId: string) => users.find(u => u.id === branchId)?.company || 'Unknown';
-  const getBranchTin = (branchId: string) => users.find(u => u.id === branchId)?.tinNumber || 'N/A';
-  const getBranchInventoryForType = (branchId: string, type: ReceiptType) => inventory.find(i => i.branchId === branchId && i.type === type);
-  const getBranchLastSeriesForType = (branchId: string, type: ReceiptType) => getBranchInventoryForType(branchId, type)?.currentSeriesEnd || 0;
-
-  const getWarehouseStockForType = (branchId: string, type: ReceiptType) => {
-    return (warehouse[branchId] || []).find(i => i.type === type);
-  };
-
-  // Filtered Lists
-  const filteredAccounts = users.filter(u => {
-    if (u.role === UserRole.ADMIN) return false;
-    const query = accountsSearch.toLowerCase();
-    return (u.branchName?.toLowerCase().includes(query) || 
-            u.company?.toLowerCase().includes(query) || 
-            u.username.toLowerCase().includes(query) || 
-            u.tinNumber?.toLowerCase().includes(query));
-  });
+  const getBranchLastSeriesForType = (branchId: string, type: ReceiptType) => inventory.find(i => i.branchId === branchId && i.type === type)?.currentSeriesEnd || 0;
 
   const filteredInventory = inventory.filter(inv => {
     const query = inventorySearch.toLowerCase();
@@ -110,100 +94,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (o.status !== SupplierOrderStatus.DELIVERED) return false;
     const query = billingSearch.toLowerCase();
     const branchName = getBranchName(o.branchId).toLowerCase();
-    const company = getBranchCompany(o.branchId).toLowerCase();
     const invoice = o.billingInvoiceNo?.toLowerCase() || '';
-    const prf = o.prfNumber?.toLowerCase() || '';
-    
-    return branchName.includes(query) || company.includes(query) || invoice.includes(query) || prf.includes(query);
+    return branchName.includes(query) || invoice.includes(query);
   });
-
-  const filteredLogisticsHistory = orders.filter(o => {
-    if (o.status !== OrderStatus.RECEIVED) return false;
-    const query = logisticsSearch.toLowerCase();
-    return (
-      o.branchName.toLowerCase().includes(query) ||
-      o.type.toLowerCase().includes(query) ||
-      (o.receivedBy?.toLowerCase() || '').includes(query) ||
-      (o.seriesStart?.toString() || '').includes(query)
-    );
-  });
-
-  const handleEditUserClick = (u: User) => {
-    setEditUserModal(u);
-    setEditBranchName(u.branchName || '');
-    setEditCompany(u.company || '');
-    setEditUsername(u.username);
-    setEditTin(u.tinNumber || '');
-  };
-
-  const handleUpdateUserSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editUserModal) {
-      onUpdateUser(editUserModal.id, { 
-        branchName: editBranchName, 
-        company: editCompany, 
-        username: editUsername, 
-        tinNumber: editTin 
-      });
-      setEditUserModal(null);
-    }
-  };
-
-  const handleAddBranchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newBranchName && newBranchCompany && newBranchUser) {
-      onAddBranch(newBranchName, newBranchCompany, newBranchUser, newBranchTin);
-      setShowAddBranchModal(false);
-      setNewBranchName('');
-      setNewBranchCompany('');
-      setNewBranchUser('');
-      setNewBranchTin('');
-    }
-  };
-
-  const handlePrfSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (prfEntryId && prfNumberInput.trim()) {
-      onUpdateSupplierDetails(prfEntryId, { prfNumber: prfNumberInput.trim() });
-      setPrfEntryId(null);
-      setPrfNumberInput('');
-    }
-  };
-
-  const handleSupConfirmSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!showSupConfirmModal) return;
-    onConfirmSupplierDelivery(showSupConfirmModal, {
-      billingInvoiceNo: supBillingNo,
-      amount: supAmount,
-      deliveryReceiptNo: supDRNo,
-      deliveryDate: supDelDate
-    });
-    setShowSupConfirmModal(null);
-    setSupBillingNo('');
-    setSupAmount(0);
-    setSupDRNo('');
-  };
-
-  const handleNewSupplierRequestSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!supBranchId) {
-      alert("Please select a branch first.");
-      return;
-    }
-    onRequestFromSupplier(supBranchId, supType, supUnits);
-    setShowSupRequestModal(false);
-    setSupBranchId('');
-    setSupType(ReceiptType.SALES_INVOICE);
-    setSupUnits(1);
-    setSupUnitLabel('Box');
-  };
-
-  const receiptsPerUnit = supUnitLabel === 'Box' ? 500 : 50;
-  const totalReceipts = supUnits * receiptsPerUnit;
-  const currentBranchEnd = getBranchLastSeriesForType(supBranchId, supType);
-  const nextStart = currentBranchEnd + 1;
-  const nextEnd = nextStart + totalReceipts - 1;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-20">
@@ -212,45 +105,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <button onClick={() => setActiveTab('supplier')} className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'supplier' ? 'bg-indigo-600 text-white' : 'text-gray-600'}`}>Supplier Orders</button>
         <button onClick={() => setActiveTab('billing')} className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'billing' ? 'bg-indigo-600 text-white' : 'text-gray-600'}`}>Billing</button>
         <button onClick={() => setActiveTab('orders')} className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'orders' ? 'bg-indigo-600 text-white' : 'text-gray-600'}`}>Logistics</button>
-        <button onClick={() => setActiveTab('search')} className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'search' ? 'bg-indigo-600 text-white' : 'text-gray-600'}`}>Branch Inventory</button>
+        <button onClick={() => setActiveTab('search')} className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'search' ? 'bg-indigo-600 text-white' : 'text-gray-600'}`}>Inventory</button>
         <button onClick={() => setActiveTab('accounts')} className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'accounts' ? 'bg-indigo-600 text-white' : 'text-gray-600'}`}>Accounts</button>
       </div>
 
       {activeTab === 'home' && (
         <div className="space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <h3 className="text-xl font-bold text-slate-800">Warehouse Allocation Stock</h3>
-            <div className="relative w-full md:w-64">
-              <input type="text" placeholder="Filter by branch..." className="block w-full pl-4 pr-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500 shadow-sm outline-none" value={warehouseSearch} onChange={(e) => setWarehouseSearch(e.target.value)} />
-            </div>
-          </div>
-          <div className="space-y-6">
-            {Object.entries(warehouse).filter(([branchId]) => {
-              const query = warehouseSearch.toLowerCase();
-              return getBranchName(branchId).toLowerCase().includes(query) || getBranchCompany(branchId).toLowerCase().includes(query);
-            }).map(([branchId, items]) => (
-              <div key={branchId} className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow">
-                <div className="mb-4">
-                  <h4 className="text-lg font-black text-gray-900">{getBranchName(branchId)}</h4>
-                  <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-widest">{getBranchCompany(branchId)}</p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {Array.isArray(items) && items.map((item: WarehouseItem, idx: number) => {
-                    const lastSeries = getBranchLastSeriesForType(branchId, item.type);
-                    return (
-                      <div key={idx} className="p-4 rounded-2xl border bg-gray-50/50 border-gray-100 group">
-                        <p className="text-[10px] font-black uppercase text-indigo-500 group-hover:text-indigo-600 transition-colors">{item.type}</p>
-                        <div className="flex justify-between items-end mt-2">
-                          <h5 className="text-2xl font-black text-slate-800">{item.totalUnits}</h5>
-                          <p className="text-[10px] font-bold uppercase pb-1 text-gray-400">{item.unitLabel}s</p>
-                        </div>
-                        <div className="mt-4 pt-3 border-t border-gray-100">
-                          <p className="text-[9px] font-bold text-gray-400 uppercase mb-1">Projected Start:</p>
-                          <div className="text-[10px] font-mono font-bold text-slate-600">{(lastSeries + 1).toLocaleString()}</div>
-                        </div>
+          <h3 className="text-xl font-bold">Warehouse Stock</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Object.entries(warehouse).map(([branchId, items]) => (
+              <div key={branchId} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                <h4 className="font-bold text-lg mb-4">{getBranchName(branchId)}</h4>
+                <div className="space-y-3">
+                  {items.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-center bg-gray-50 p-3 rounded-xl">
+                      <div>
+                        <p className="text-[10px] font-bold text-indigo-600 uppercase">{item.type}</p>
+                        <p className="text-sm font-black">{item.totalUnits} {item.unitLabel}s</p>
                       </div>
-                    );
-                  })}
+                      <p className="text-[10px] text-gray-400 font-mono">End: {getBranchLastSeriesForType(branchId, item.type).toLocaleString()}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
@@ -258,190 +133,203 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {activeTab === 'search' && (
+      {activeTab === 'supplier' && (
         <div className="space-y-6">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <h3 className="text-xl font-bold text-slate-800">Active Branch Inventory</h3>
-            <div className="relative w-full md:w-80">
-              <input type="text" placeholder="Search branch, company, or type..." className="w-full pl-4 pr-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500 shadow-sm outline-none" value={inventorySearch} onChange={(e) => setInventorySearch(e.target.value)} />
-            </div>
+          <div className="flex justify-between items-center">
+            <h3 className="text-xl font-bold">Supplier Replenishment</h3>
+            <button onClick={() => setShowSupRequestModal(true)} className="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold shadow-sm">New Request</button>
           </div>
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50 text-[10px] text-gray-400 uppercase font-black tracking-widest border-b">
-                  <tr>
-                    <th className="px-6 py-4">Branch & Company</th>
-                    <th className="px-6 py-4">Receipt Type</th>
-                    <th className="px-6 py-4">Remaining Series</th>
-                    <th className="px-6 py-4">Remaining Stock</th>
-                    <th className="px-6 py-4">Last Logged</th>
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="px-6 py-4">Order ID</th>
+                  <th className="px-6 py-4">Branch Allocation</th>
+                  <th className="px-6 py-4">Receipt Type</th>
+                  <th className="px-6 py-4">Quantity</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {activeSupOrders.map(o => (
+                  <tr key={o.id}>
+                    <td className="px-6 py-4 font-mono text-xs">{o.id}</td>
+                    <td className="px-6 py-4 font-bold">{getBranchName(o.branchId)}</td>
+                    <td className="px-6 py-4">{o.type}</td>
+                    <td className="px-6 py-4">{o.quantityUnits} Units</td>
+                    <td className="px-6 py-4">
+                      <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-bold uppercase">{o.status}</span>
+                    </td>
+                    <td className="px-6 py-4 space-x-2">
+                      {o.status === SupplierOrderStatus.REQUESTED && <button onClick={() => onUpdateSupplierStatus(o.id, SupplierOrderStatus.PROCESSED)} className="text-xs font-bold text-indigo-600">Process</button>}
+                      {o.status === SupplierOrderStatus.PROCESSED && <button onClick={() => onUpdateSupplierStatus(o.id, SupplierOrderStatus.SHIPPED)} className="text-xs font-bold text-indigo-600">Ship</button>}
+                      {o.status === SupplierOrderStatus.SHIPPED && <button onClick={() => setShowSupConfirmModal(o.id)} className="text-xs font-bold text-green-600">Receive</button>}
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {filteredInventory.map((inv, idx) => {
-                    const isLow = inv.remainingStock <= inv.threshold;
-                    const perUnit = inv.type === ReceiptType.SALES_INVOICE ? 500 : 50;
-                    const unitLabel = inv.type === ReceiptType.SALES_INVOICE ? 'Box' : 'Booklet';
-                    const unitsCount = Math.floor(inv.remainingStock / perUnit);
-                    const looseCount = inv.remainingStock % perUnit;
-
-                    return (
-                      <tr key={idx} className="hover:bg-gray-50/30 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="font-bold text-slate-900">{getBranchName(inv.branchId)}</div>
-                          <div className="text-[10px] text-gray-400 uppercase font-bold">{inv.company}</div>
-                        </td>
-                        <td className="px-6 py-4 font-medium text-indigo-600/80">{inv.type}</td>
-                        <td className="px-6 py-4">
-                          <div className="font-mono text-xs text-slate-600">
-                            {inv.lastUsedNumber + 1 < inv.currentSeriesEnd ? (
-                              `${(inv.lastUsedNumber + 1).toLocaleString()} - ${inv.currentSeriesEnd.toLocaleString()}`
-                            ) : (
-                              <span className="text-red-500 font-bold">SERIES DEPLETED</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col">
-                            <div className="flex items-center gap-2">
-                              <span className={`font-black text-lg ${isLow ? 'text-red-600' : 'text-gray-900'}`}>
-                                {inv.remainingStock.toLocaleString()}
-                              </span>
-                              {isLow && <span className="text-[8px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold uppercase ring-1 ring-red-200">Low</span>}
-                            </div>
-                            <div className="text-[10px] font-bold text-gray-400 uppercase">
-                              {unitsCount} {unitLabel}{unitsCount !== 1 ? 's' : ''} {looseCount > 0 ? `+ ${looseCount} loose` : ''}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          {inv.lastUpdateDate ? (
-                            <div className="text-[10px]">
-                              <div className="font-bold text-gray-700">{inv.lastUpdateDate}</div>
-                              <div className="text-gray-400 italic font-medium">By: {inv.lastUpdatedBy || 'System'}</div>
-                            </div>
-                          ) : (
-                            <span className="text-gray-300 italic text-xs">No updates</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                ))}
+                {activeSupOrders.length === 0 && <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400 italic">No active supplier orders.</td></tr>}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
 
-      {activeTab === 'accounts' && (
+      {activeTab === 'billing' && (
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h3 className="text-xl font-bold text-slate-800">Branch Account Management</h3>
-            <button onClick={() => setShowAddBranchModal(true)} className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-md shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/></svg>
-              Register Branch
-            </button>
-          </div>
-          <div className="relative w-full md:w-80">
-            <input type="text" placeholder="Search accounts..." className="w-full pl-4 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500 shadow-sm outline-none transition-all" value={accountsSearch} onChange={(e) => setAccountsSearch(e.target.value)} />
+          <div className="flex justify-between items-center">
+            <h3 className="text-xl font-bold">Billing & PRF Tracking</h3>
+            <input type="text" placeholder="Search invoices..." className="border rounded-xl px-4 py-2 text-sm" value={billingSearch} onChange={e => setBillingSearch(e.target.value)} />
           </div>
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50 text-[10px] text-gray-400 uppercase font-black tracking-widest border-b">
-                  <tr>
-                    <th className="px-6 py-4">Branch Name</th>
-                    <th className="px-6 py-4">Company Entity</th>
-                    <th className="px-6 py-4">TIN #</th>
-                    <th className="px-6 py-4">Username</th>
-                    <th className="px-6 py-4 text-right">Actions</th>
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="px-6 py-4">Date</th>
+                  <th className="px-6 py-4">Branch</th>
+                  <th className="px-6 py-4">Invoice #</th>
+                  <th className="px-6 py-4">Amount</th>
+                  <th className="px-6 py-4">PRF #</th>
+                  <th className="px-6 py-4">Payment</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {filteredBillingOrders.map(o => (
+                  <tr key={o.id}>
+                    <td className="px-6 py-4 text-xs">{o.deliveryDate}</td>
+                    <td className="px-6 py-4 font-bold">{getBranchName(o.branchId)}</td>
+                    <td className="px-6 py-4 font-mono">{o.billingInvoiceNo}</td>
+                    <td className="px-6 py-4 font-black">₱{(o.amount || 0).toLocaleString()}</td>
+                    <td className="px-6 py-4">
+                      {o.prfNumber ? (
+                        <span className="font-bold text-indigo-600">{o.prfNumber}</span>
+                      ) : (
+                        <button onClick={() => { setPrfEntryId(o.id); setPrfNumberInput(''); }} className="text-xs text-gray-400 italic hover:underline">Add PRF</button>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <button onClick={() => onUpdateSupplierDetails(o.id, { isPaid: !o.isPaid })} className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase ${o.isPaid ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {o.isPaid ? 'Paid' : 'Unpaid'}
+                      </button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {filteredAccounts.map(u => (
-                    <tr key={u.id} className="hover:bg-gray-50/30 transition-colors">
-                      <td className="px-6 py-4 font-bold text-gray-900">{u.branchName}</td>
-                      <td className="px-6 py-4 text-indigo-600 font-bold text-xs">{u.company}</td>
-                      <td className="px-6 py-4 font-mono text-xs text-gray-600">{u.tinNumber || '—'}</td>
-                      <td className="px-6 py-4 font-mono text-gray-500">{u.username}</td>
-                      <td className="px-6 py-4 text-right space-x-4">
-                        <button onClick={() => handleEditUserClick(u)} className="text-indigo-600 hover:text-indigo-800 font-bold text-xs uppercase tracking-tighter hover:underline">Edit</button>
-                        <button onClick={() => onDeleteUser(u.id)} className="text-red-500 hover:text-red-700 font-bold text-xs uppercase tracking-tighter hover:underline">Delete</button>
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredAccounts.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-gray-300 italic">No branch accounts found.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'orders' && (
+        <div className="space-y-6">
+          <h3 className="text-xl font-bold">Branch Logistics Queue</h3>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 border-b text-[10px] uppercase font-bold text-gray-400">
+                <tr>
+                  <th className="px-6 py-4">Order Details</th>
+                  <th className="px-6 py-4">Type</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {orders.filter(o => o.status !== OrderStatus.RECEIVED).map(o => (
+                  <tr key={o.id}>
+                    <td className="px-6 py-4">
+                      <div className="font-bold">{o.branchName}</div>
+                      <div className="text-[10px] text-gray-400">Req Date: {o.requestDate}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-medium text-indigo-600">{o.type}</div>
+                      <div className="text-xs">{o.quantityUnits} Units</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${o.status === OrderStatus.PENDING ? 'bg-yellow-100 text-yellow-600' : 'bg-blue-100 text-blue-600'}`}>
+                        {o.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right space-x-2">
+                      {o.status === OrderStatus.PENDING && <button onClick={() => onApprove(o.id)} className="bg-green-600 text-white px-3 py-1 rounded-lg text-xs font-bold">Approve</button>}
+                      {o.status === OrderStatus.APPROVED && <button onClick={() => setDeliveryInput({ id: o.id, start: '' })} className="bg-indigo-600 text-white px-3 py-1 rounded-lg text-xs font-bold">Assign Series</button>}
+                      {o.status === OrderStatus.IN_TRANSIT && <button onClick={() => onMarkDelivered(o.id)} className="bg-gray-900 text-white px-3 py-1 rounded-lg text-xs font-bold">Mark Delivered</button>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Modals */}
+      {showSupRequestModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full space-y-4">
+            <h3 className="text-xl font-bold">New Supplier Request</h3>
+            <div className="space-y-4">
+              <select className="w-full border p-3 rounded-xl" value={supBranchId} onChange={e => setSupBranchId(e.target.value)}>
+                <option value="">Select Branch Allocation</option>
+                {users.filter(u => u.role === UserRole.BRANCH).map(b => <option key={b.id} value={b.id}>{b.branchName}</option>)}
+              </select>
+              <select className="w-full border p-3 rounded-xl" value={supType} onChange={e => setSupType(e.target.value as ReceiptType)}>
+                {Object.values(ReceiptType).map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <input type="number" className="w-full border p-3 rounded-xl" value={supUnits} onChange={e => setSupUnits(parseInt(e.target.value))} placeholder="Quantity of Units" />
+              <div className="flex gap-2">
+                <button onClick={() => setShowSupRequestModal(false)} className="flex-1 py-3 font-bold text-gray-500">Cancel</button>
+                <button onClick={() => { onRequestFromSupplier(supBranchId, supType, supUnits); setShowSupRequestModal(false); }} className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold">Submit</button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Supplier & Logistics tabs elided for brevity as they haven't changed */}
-      {/* ... (rest of the tabs) ... */}
-
-      {/* Shared Modals */}
-      {showAddBranchModal && (
+      {showSupConfirmModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 space-y-6">
-            <h3 className="text-xl font-bold text-slate-800">New Branch Registration</h3>
-            <form onSubmit={handleAddBranchSubmit} className="space-y-4">
-              <div className="space-y-4">
-                <input placeholder="Branch Name (e.g. SM North)" required className="w-full bg-gray-50 border p-3 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all" value={newBranchName} onChange={e => setNewBranchName(e.target.value)} />
-                <input placeholder="Company Entity (e.g. PMCI)" required className="w-full bg-gray-50 border p-3 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all" value={newBranchCompany} onChange={e => setNewBranchCompany(e.target.value)} />
-                <input placeholder="Login Username" required className="w-full bg-gray-50 border p-3 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all" value={newBranchUser} onChange={e => setNewBranchUser(e.target.value)} />
-                <input placeholder="TIN Number (Optional)" className="w-full bg-gray-50 border p-3 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all" value={newBranchTin} onChange={e => setNewBranchTin(e.target.value)} />
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full space-y-4">
+            <h3 className="text-xl font-bold">Receive Supplier Delivery</h3>
+            <div className="space-y-4">
+              <input className="w-full border p-3 rounded-xl" placeholder="Billing Invoice No" value={supBillingNo} onChange={e => setSupBillingNo(e.target.value)} />
+              <input type="number" className="w-full border p-3 rounded-xl" placeholder="Total Amount (₱)" value={supAmount} onChange={e => setSupAmount(parseFloat(e.target.value))} />
+              <input className="w-full border p-3 rounded-xl" placeholder="Delivery Receipt No" value={supDRNo} onChange={e => setSupDRNo(e.target.value)} />
+              <div className="flex gap-2">
+                <button onClick={() => setShowSupConfirmModal(null)} className="flex-1 py-3 font-bold text-gray-500">Cancel</button>
+                <button onClick={() => { 
+                  onConfirmSupplierDelivery(showSupConfirmModal, { billingInvoiceNo: supBillingNo, amount: supAmount, deliveryReceiptNo: supDRNo, deliveryDate: supDelDate }); 
+                  setShowSupConfirmModal(null);
+                }} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold">Confirm</button>
               </div>
-              <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setShowAddBranchModal(false)} className="flex-1 font-bold text-gray-500 hover:text-gray-700">Cancel</button>
-                <button type="submit" className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-indigo-100">Create Account</button>
-              </div>
-            </form>
+            </div>
           </div>
         </div>
       )}
 
-      {editUserModal && (
+      {prfEntryId && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 space-y-6">
-            <h3 className="text-xl font-bold text-slate-800">Edit Branch Details</h3>
-            <form onSubmit={handleUpdateUserSubmit} className="space-y-4">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Branch Name</label>
-                  <input required className="w-full bg-gray-50 border p-3 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all" value={editBranchName} onChange={e => setEditBranchName(e.target.value)} />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Company Entity</label>
-                  <input required className="w-full bg-gray-50 border p-3 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all" value={editCompany} onChange={e => setEditCompany(e.target.value)} />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Username</label>
-                  <input required className="w-full bg-gray-50 border p-3 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all" value={editUsername} onChange={e => setEditUsername(e.target.value)} />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">TIN Number</label>
-                  <input className="w-full bg-gray-50 border p-3 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all" value={editTin} onChange={e => setEditTin(e.target.value)} />
-                </div>
-              </div>
-              <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setEditUserModal(null)} className="flex-1 font-bold text-gray-500 hover:text-gray-700">Cancel</button>
-                <button type="submit" className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-indigo-100">Update Account</button>
-              </div>
-            </form>
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full space-y-4">
+            <h3 className="text-xl font-bold">Assign PRF Number</h3>
+            <input className="w-full border p-3 rounded-xl" placeholder="Enter PRF #" value={prfNumberInput} onChange={e => setPrfNumberInput(e.target.value)} />
+            <div className="flex gap-2">
+              <button onClick={() => setPrfEntryId(null)} className="flex-1 py-3 font-bold text-gray-500">Cancel</button>
+              <button onClick={() => { onUpdateSupplierDetails(prfEntryId, { prfNumber: prfNumberInput }); setPrfEntryId(null); }} className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold">Save</button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Supplier & Delivery Modals elided for brevity */}
-      {/* ... (rest of modals) ... */}
+      {deliveryInput && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full space-y-4">
+            <h3 className="text-xl font-bold">Assign Series Start</h3>
+            <input type="number" className="w-full border p-3 rounded-xl" placeholder="Starting Number" value={deliveryInput.start} onChange={e => setDeliveryInput({ ...deliveryInput, start: e.target.value })} />
+            <div className="flex gap-2">
+              <button onClick={() => setDeliveryInput(null)} className="flex-1 py-3 font-bold text-gray-500">Cancel</button>
+              <button onClick={() => { onShip(deliveryInput.id, parseInt(deliveryInput.start)); setDeliveryInput(null); }} className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold">Ship Order</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -39,6 +38,12 @@ export default function Home() {
 
   const handleUpdateUser = (userId: string, updates: Partial<User>) => {
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updates } : u));
+  };
+
+  const handleDeleteUser = (userId: string) => {
+    if (confirm('Are you sure you want to delete this branch? This will remove their account access.')) {
+      setUsers(prev => prev.filter(u => u.id !== userId));
+    }
   };
 
   const updateLastUsed = (branchId: string, type: ReceiptType, newLastUsed: number, updateDate: string, loggedBy?: string) => {
@@ -150,6 +155,7 @@ export default function Home() {
             onConfirmSupplierDelivery={(id, det) => {}}
             onAddBranch={handleAddBranch}
             onUpdateUser={handleUpdateUser}
+            onDeleteUser={handleDeleteUser}
           />
         ) : (
           <BranchDashboard 

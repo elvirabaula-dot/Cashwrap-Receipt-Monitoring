@@ -1,4 +1,6 @@
 
+'use client';
+
 import React, { useState } from 'react';
 import { User, ReceiptInventory, ReceiptOrder, OrderStatus, ReceiptType, WarehouseItem } from '../types';
 

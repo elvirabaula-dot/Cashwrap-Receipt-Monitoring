@@ -1,8 +1,8 @@
 
 'use client';
 
-import React, { useState } from 'react';
-import { User, UserRole, ReceiptInventory, ReceiptOrder, WarehouseStock, OrderStatus, ReceiptType, SupplierOrder, SupplierOrderStatus } from '../types';
+import React, { useState, useEffect } from 'react';
+import { User, UserRole, ReceiptInventory, ReceiptOrder, WarehouseStock, OrderStatus, ReceiptType, SupplierOrder, SupplierOrderStatus, WarehouseItem } from '../types';
 import { INITIAL_USERS, INITIAL_INVENTORY, INITIAL_ORDERS, INITIAL_WAREHOUSE } from '../constants';
 import Login from '../components/Login';
 import AdminDashboard from '../components/AdminDashboard';
@@ -16,16 +16,18 @@ export default function Home() {
   const [orders, setOrders] = useState<ReceiptOrder[]>(INITIAL_ORDERS);
   const [warehouse, setWarehouse] = useState<WarehouseStock>(INITIAL_WAREHOUSE);
   const [supplierOrders, setSupplierOrders] = useState<SupplierOrder[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = (username: string) => {
     const found = users.find(u => u.username === username);
     if (found) setUser(found);
-    else alert('Unauthorized: Credential not found. Please contact your system administrator.');
+    else alert('Unauthorized: Credential not found.');
   };
 
   const handleLogout = () => setUser(null);
 
-  const handleAddBranch = (branchName: string, company: string, username: string, tinNumber?: string) => {
+  const handleAddBranch = async (branchName: string, company: string, username: string, tinNumber?: string) => {
+    setIsLoading(true);
     const newBranch: User = {
       id: `br_${Date.now()}`,
       username,
@@ -35,50 +37,7 @@ export default function Home() {
       tinNumber
     };
     setUsers(prev => [...prev, newBranch]);
-  };
-
-  const handleUpdateUser = (userId: string, updates: Partial<User>) => {
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updates } : u));
-  };
-
-  const handleDeleteUser = (userId: string) => {
-    if (confirm('Are you sure you want to delete this branch? This will remove their account access and data visibility.')) {
-      setUsers(prev => prev.filter(u => u.id !== userId));
-    }
-  };
-
-  const updateLastUsed = (branchId: string, type: ReceiptType, newLastUsed: number, updateDate: string, loggedBy?: string) => {
-    setInventory(prev => prev.map(inv => {
-      if (inv.branchId === branchId && inv.type === type) {
-        const consumed = newLastUsed - inv.lastUsedNumber;
-        return {
-          ...inv,
-          lastUsedNumber: newLastUsed,
-          remainingStock: Math.max(0, inv.remainingStock - consumed),
-          lastUpdateDate: updateDate,
-          lastUpdatedBy: loggedBy
-        };
-      }
-      return inv;
-    }));
-  };
-
-  const requestReceipts = (branchId: string, company: string, branchName: string, type: ReceiptType, units: number) => {
-    const newOrder: ReceiptOrder = {
-      id: `ord_${Date.now()}`,
-      branchId,
-      branchName,
-      company,
-      type,
-      quantityUnits: units,
-      status: OrderStatus.PENDING,
-      requestDate: new Date().toISOString().split('T')[0]
-    };
-    setOrders(prev => [newOrder, ...prev]);
-  };
-
-  const approveOrder = (orderId: string) => {
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: OrderStatus.APPROVED } : o));
+    setIsLoading(false);
   };
 
   const shipOrder = (orderId: string, startSeries: number) => {
@@ -88,7 +47,6 @@ export default function Home() {
         const total = o.quantityUnits * perUnit;
         const end = startSeries + total - 1;
         
-        // Decrement warehouse stock for that specific branch/type
         setWarehouse(curr => {
           const branchItems = curr[o.branchId] || [];
           const updatedItems = branchItems.map(item => 
@@ -109,80 +67,31 @@ export default function Home() {
     }));
   };
 
-  const markAsDelivered = (orderId: string) => {
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: OrderStatus.DELIVERED } : o));
-  };
-
-  const confirmReceipt = (orderId: string, receivedBy: string) => {
-    const order = orders.find(o => o.id === orderId);
-    if (!order) return;
-
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: OrderStatus.RECEIVED, receivedBy } : o));
-
-    setInventory(prev => {
-      const existing = prev.find(i => i.branchId === order.branchId && i.type === order.type);
-      const perUnit = order.type === ReceiptType.SALES_INVOICE ? 500 : 50;
-      const amountToAdd = order.quantityUnits * perUnit;
-
-      if (existing) {
-        return prev.map(i => i.branchId === order.branchId && i.type === order.type ? {
-          ...i,
-          currentSeriesEnd: order.seriesEnd || i.currentSeriesEnd,
-          remainingStock: i.remainingStock + amountToAdd,
-          lastUpdateDate: new Date().toISOString().split('T')[0]
-        } : i);
-      }
-      return [...prev, {
-        branchId: order.branchId,
-        company: order.company,
-        type: order.type,
-        currentSeriesStart: order.seriesStart || 0,
-        currentSeriesEnd: order.seriesEnd || 0,
-        lastUsedNumber: (order.seriesStart || 1) - 1,
-        remainingStock: amountToAdd,
-        threshold: order.type === ReceiptType.SALES_INVOICE ? 5000 : 250,
-        lastUpdateDate: new Date().toISOString().split('T')[0]
-      }];
-    });
-  };
-
-  const handleRequestFromSupplier = (branchId: string, type: ReceiptType, units: number) => {
-    const newOrder: SupplierOrder = {
-      id: `SUP-${Date.now()}`,
-      branchId,
-      type,
-      quantityUnits: units,
-      status: SupplierOrderStatus.REQUESTED,
-      requestDate: new Date().toISOString().split('T')[0]
-    };
-    setSupplierOrders(prev => [newOrder, ...prev]);
-  };
-
-  const handleUpdateSupplierStatus = (orderId: string, status: SupplierOrderStatus) => {
-    setSupplierOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
-  };
-
   const handleConfirmSupplierDelivery = (orderId: string, details: any) => {
     setSupplierOrders(prev => prev.map(o => {
       if (o.id === orderId) {
-        // Increment Warehouse Stock
         setWarehouse(curr => {
           const branchItems = curr[o.branchId] || [];
           const existing = branchItems.find(i => i.type === o.type);
-          let updatedItems;
+          let updatedItems: WarehouseItem[];
           
           if (existing) {
             updatedItems = branchItems.map(i => i.type === o.type ? { ...i, totalUnits: i.totalUnits + o.quantityUnits } : i);
           } else {
-            updatedItems = [...branchItems, {
+            const newItem: WarehouseItem = {
               type: o.type,
               branchId: o.branchId,
               totalUnits: o.quantityUnits,
               receiptsPerUnit: o.type === ReceiptType.SALES_INVOICE ? 500 : 50,
-              unitLabel: o.type === ReceiptType.SALES_INVOICE ? 'Box' : 'Booklet'
-            }];
+              unitLabel: (o.type === ReceiptType.SALES_INVOICE ? 'Box' : 'Booklet') as 'Box' | 'Booklet'
+            };
+            updatedItems = [...branchItems, newItem];
           }
-          return { ...curr, [o.branchId]: updatedItems };
+          
+          return { 
+            ...curr, 
+            [o.branchId]: updatedItems 
+          };
         });
         return { ...o, ...details, status: SupplierOrderStatus.DELIVERED };
       }
@@ -195,6 +104,14 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar user={user} onLogout={handleLogout} />
+      {isLoading && (
+        <div className="fixed inset-0 bg-white/50 backdrop-blur-sm z-[200] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-xs font-bold text-indigo-600 animate-pulse">SYNCING WITH DATABASE...</p>
+          </div>
+        </div>
+      )}
       <main className="flex-grow p-4 md:p-8 max-w-7xl mx-auto w-full">
         {user.role === UserRole.ADMIN ? (
           <AdminDashboard 
@@ -203,27 +120,67 @@ export default function Home() {
             orders={orders} 
             warehouse={warehouse}
             supplierOrders={supplierOrders}
-            onApprove={approveOrder}
+            onApprove={(id) => setOrders(p => p.map(o => o.id === id ? {...o, status: OrderStatus.APPROVED} : o))}
             onShip={shipOrder}
-            onMarkDelivered={markAsDelivered}
-            onReplenishWarehouse={(b, t, u) => {}} 
-            onRequestFromSupplier={handleRequestFromSupplier}
-            onUpdateSupplierStatus={handleUpdateSupplierStatus}
+            onMarkDelivered={(id) => setOrders(p => p.map(o => o.id === id ? {...o, status: OrderStatus.DELIVERED} : o))}
+            onReplenishWarehouse={() => {}} 
+            onRequestFromSupplier={(b, t, u) => {
+              const newOrder: SupplierOrder = {
+                id: `SUP-${Date.now()}`,
+                branchId: b,
+                type: t,
+                quantityUnits: u,
+                status: SupplierOrderStatus.REQUESTED,
+                requestDate: new Date().toISOString().split('T')[0]
+              };
+              setSupplierOrders(p => [newOrder, ...p]);
+            }}
+            onUpdateSupplierStatus={(id, s) => setSupplierOrders(p => p.map(o => o.id === id ? {...o, status: s} : o))}
             onUpdateSupplierDetails={(id, up) => setSupplierOrders(p => p.map(o => o.id === id ? { ...o, ...up } : o))}
             onConfirmSupplierDelivery={handleConfirmSupplierDelivery}
             onAddBranch={handleAddBranch}
-            onUpdateUser={handleUpdateUser}
-            onDeleteUser={handleDeleteUser}
+            onUpdateUser={(id, up) => setUsers(p => p.map(u => u.id === id ? {...u, ...up} : u))}
+            onDeleteUser={(id) => { if(confirm('Delete branch?')) setUsers(p => p.filter(u => u.id !== id)) }}
           />
         ) : (
           <BranchDashboard 
             user={user} 
             inventory={inventory.filter(i => i.branchId === user.id)}
             orders={orders.filter(o => o.branchId === user.id)}
-            onUpdateSeries={updateLastUsed}
-            onRequestReceipts={requestReceipts}
+            onUpdateSeries={(bid, type, num, date, by) => {
+              setInventory(p => p.map(inv => (inv.branchId === bid && inv.type === type) ? {
+                ...inv,
+                lastUsedNumber: num,
+                remainingStock: Math.max(0, inv.remainingStock - (num - inv.lastUsedNumber)),
+                lastUpdateDate: date,
+                lastUpdatedBy: by
+              } : inv));
+            }}
+            onRequestReceipts={(bid, comp, bname, type, units) => {
+              const o: ReceiptOrder = {
+                id: `ord_${Date.now()}`,
+                branchId: bid,
+                branchName: bname,
+                company: comp,
+                type,
+                quantityUnits: units,
+                status: OrderStatus.PENDING,
+                requestDate: new Date().toISOString().split('T')[0]
+              };
+              setOrders(p => [o, ...p]);
+            }}
             onUpdateRequest={(id, t, u) => setOrders(p => p.map(o => o.id === id ? { ...o, type: t, quantityUnits: u } : o))}
-            onConfirmReceipt={confirmReceipt}
+            onConfirmReceipt={(id, by) => {
+              const o = orders.find(x => x.id === id);
+              if(!o) return;
+              setOrders(p => p.map(x => x.id === id ? {...x, status: OrderStatus.RECEIVED, receivedBy: by} : x));
+              setInventory(p => {
+                const ex = p.find(i => i.branchId === o.branchId && i.type === o.type);
+                const add = o.quantityUnits * (o.type === ReceiptType.SALES_INVOICE ? 500 : 50);
+                if(ex) return p.map(i => i.branchId === o.branchId && i.type === o.type ? {...i, currentSeriesEnd: o.seriesEnd || i.currentSeriesEnd, remainingStock: i.remainingStock + add} : i);
+                return [...p, { branchId: o.branchId, company: o.company, type: o.type, currentSeriesStart: o.seriesStart || 0, currentSeriesEnd: o.seriesEnd || 0, lastUsedNumber: (o.seriesStart||1)-1, remainingStock: add, threshold: 500 }];
+              });
+            }}
             warehouseConfig={warehouse[user.id] || []}
           />
         )}

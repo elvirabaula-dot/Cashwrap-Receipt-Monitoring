@@ -83,6 +83,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const getBranchInventoryForType = (branchId: string, type: ReceiptType) => inventory.find(i => i.branchId === branchId && i.type === type);
   const getBranchLastSeriesForType = (branchId: string, type: ReceiptType) => getBranchInventoryForType(branchId, type)?.currentSeriesEnd || 0;
 
+  const getWarehouseStockForType = (branchId: string, type: ReceiptType) => {
+    return (warehouse[branchId] || []).find(i => i.type === type);
+  };
+
   // Filtered Lists
   const filteredAccounts = users.filter(u => {
     if (u.role === UserRole.ADMIN) return false;
@@ -376,36 +380,61 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <tr>
                     <th className="px-6 py-4">Branch & TIN</th>
                     <th className="px-6 py-4">Type</th>
-                    <th className="px-6 py-4">Qty</th>
+                    <th className="px-6 py-4">Warehouse Status</th>
+                    <th className="px-6 py-4">Order Qty</th>
                     <th className="px-6 py-4">Status</th>
                     <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {activeSupOrders.map(o => (
-                    <tr key={o.id} className="hover:bg-gray-50/30 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="font-bold text-gray-900">{getBranchName(o.branchId)}</div>
-                        <div className="text-[10px] text-gray-400 uppercase tracking-tighter">{getBranchCompany(o.branchId)}</div>
-                        <div className="text-[9px] font-mono text-indigo-500 font-bold mt-1">TIN: {getBranchTin(o.branchId)}</div>
-                      </td>
-                      <td className="px-6 py-4 font-medium">{o.type}</td>
-                      <td className="px-6 py-4 font-black">{o.quantityUnits} Units</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border uppercase ${o.status === SupplierOrderStatus.REQUESTED ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>{o.status}</span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        {o.status === SupplierOrderStatus.REQUESTED ? (
-                          <button onClick={() => onUpdateSupplierStatus(o.id, SupplierOrderStatus.SHIPPED)} className="text-indigo-600 font-bold text-xs hover:underline bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">Mark Shipped</button>
-                        ) : (
-                          <button onClick={() => setShowSupConfirmModal(o.id)} className="bg-green-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-green-700 shadow-sm">Confirm Arrival</button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {activeSupOrders.map(o => {
+                    const ws = getWarehouseStockForType(o.branchId, o.type);
+                    const brInv = getBranchInventoryForType(o.branchId, o.type);
+                    
+                    // Logic to figure out warehouse range
+                    // Warehouse starts at Branch End + 1
+                    const wsStart = (brInv?.currentSeriesEnd || 0) + 1;
+                    const wsReceipts = (ws?.totalUnits || 0) * (ws?.receiptsPerUnit || 1);
+                    const wsEnd = wsStart + wsReceipts - 1;
+
+                    return (
+                      <tr key={o.id} className="hover:bg-gray-50/30 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="font-bold text-gray-900">{getBranchName(o.branchId)}</div>
+                          <div className="text-[10px] text-gray-400 uppercase tracking-tighter">{getBranchCompany(o.branchId)}</div>
+                          <div className="text-[9px] font-mono text-indigo-500 font-bold mt-1">TIN: {getBranchTin(o.branchId)}</div>
+                        </td>
+                        <td className="px-6 py-4 font-medium">{o.type}</td>
+                        <td className="px-6 py-4">
+                          {ws && ws.totalUnits > 0 ? (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-black text-teal-600">{ws.totalUnits} {ws.unitLabel}s</span>
+                                <span className="text-[9px] bg-teal-50 text-teal-600 px-1 py-0.5 rounded border border-teal-100 font-bold uppercase tracking-tighter">In Stock</span>
+                              </div>
+                              <div className="text-[10px] font-mono text-gray-500">Series: {wsStart.toLocaleString()} - {wsEnd.toLocaleString()}</div>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-gray-400 italic">No warehouse stock</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 font-black">{o.quantityUnits} Units</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border uppercase ${o.status === SupplierOrderStatus.REQUESTED ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>{o.status}</span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          {o.status === SupplierOrderStatus.REQUESTED ? (
+                            <button onClick={() => onUpdateSupplierStatus(o.id, SupplierOrderStatus.SHIPPED)} className="text-indigo-600 font-bold text-xs hover:underline bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">Mark Shipped</button>
+                          ) : (
+                            <button onClick={() => setShowSupConfirmModal(o.id)} className="bg-green-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-green-700 shadow-sm">Confirm Arrival</button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {activeSupOrders.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">No active supplier requests.</td>
+                      <td colSpan={6} className="px-6 py-12 text-center text-gray-400 italic">No active supplier requests.</td>
                     </tr>
                   )}
                 </tbody>

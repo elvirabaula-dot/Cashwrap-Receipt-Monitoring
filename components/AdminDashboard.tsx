@@ -169,7 +169,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <div className="mt-8 bg-indigo-50 rounded-3xl p-6 border border-indigo-100">
             <h5 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-2">Cloud Setup Tip</h5>
             <p className="text-xs text-indigo-900/70 leading-relaxed italic">
-              Use these CSV files to seed your Supabase tables. Go to Supabase Dashboard > Table Editor > [Select Table] > Insert > Import Data from CSV. This ensures your cloud environment perfectly matches the local monitoring logic.
+              Use these CSV files to seed your Supabase tables. Go to Supabase Dashboard &gt; Table Editor &gt; [Select Table] &gt; Insert &gt; Import Data from CSV. This ensures your cloud environment perfectly matches the local monitoring logic.
             </p>
           </div>
         </div>
@@ -388,7 +388,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* Modals remain same... */}
       {showSupRequestModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
           <div className="bg-white rounded-[32px] p-8 max-w-md w-full shadow-2xl">

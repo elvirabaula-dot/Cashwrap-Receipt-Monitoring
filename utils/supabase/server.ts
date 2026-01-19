@@ -3,12 +3,11 @@ import { createClient } from '@supabase/supabase-js';
 
 /**
  * Creates a Supabase client for use in Server Components.
- * Ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY 
- * are configured in your Vercel Environment Variables.
+ * Fallback values used to prevent "supabaseUrl is required" initialization errors.
  */
 export async function createServerClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
 
   return createClient(supabaseUrl, supabaseAnonKey);
 }

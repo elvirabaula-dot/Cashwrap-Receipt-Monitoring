@@ -1,0 +1,2 @@
+id,orderId,amount,billingDate,status,remarks
+BILL-001,SUP-1700000000,45000,2023-11-02,PAID,Standard bulk purchase

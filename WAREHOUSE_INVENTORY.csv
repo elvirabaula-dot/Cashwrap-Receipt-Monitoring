@@ -1,0 +1,6 @@
+branchId,type,totalUnits,receiptsPerUnit,unitLabel
+2,Sales Invoice,15,500,Box
+2,Collection Receipt,20,50,Booklet
+3,Sales Invoice,10,500,Box
+3,Delivery Receipt,30,50,Booklet
+4,Service Invoice,25,50,Booklet

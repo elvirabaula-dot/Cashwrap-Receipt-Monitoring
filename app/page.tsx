@@ -17,28 +17,32 @@ export default function Home() {
   const [orders, setOrders] = useState<ReceiptOrder[]>(INITIAL_ORDERS);
   const [warehouse, setWarehouse] = useState<WarehouseStock>(INITIAL_WAREHOUSE);
   const [supplierOrders, setSupplierOrders] = useState<SupplierOrder[]>([]);
+  const [logistics, setLogistics] = useState<any[]>([]);
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
 
   useEffect(() => {
     const syncAllTables = async () => {
       setIsCloudSyncing(true);
       try {
-        // Sync Inventory
+        // 1. Sync User Accounts
+        const { data: userData } = await supabase.from('User-Accounts').select('*');
+        if (userData && userData.length > 0) setUsers(userData as unknown as User[]);
+
+        // 2. Sync Branch Inventory
         const { data: invData } = await supabase.from('Cashwrap-Receipt').select('*');
         if (invData && invData.length > 0) setInventory(invData as unknown as ReceiptInventory[]);
 
-        // Sync Supplier Orders
+        // 3. Sync Supplier Orders
         const { data: supData } = await supabase.from('Supplier-Orders').select('*');
         if (supData && supData.length > 0) setSupplierOrders(supData as unknown as SupplierOrder[]);
 
-        // Sync Logistics
+        // 4. Sync Logistics Tracking
         const { data: logData } = await supabase.from('Logistics-Tracking').select('*');
-        // If logistics data needed in state, handle it here (e.g. setLogistics(logData))
+        if (logData && logData.length > 0) setLogistics(logData);
 
-        // Sync Warehouse
+        // 5. Sync Warehouse Stocks
         const { data: whData } = await supabase.from('Warehouse-Inventory').select('*');
         if (whData && whData.length > 0) {
-          // Group warehouse data by branchId for the local state structure
           const grouped: WarehouseStock = {};
           whData.forEach((item: any) => {
             if (!grouped[item.branchId]) grouped[item.branchId] = [];
@@ -47,7 +51,7 @@ export default function Home() {
           setWarehouse(grouped);
         }
       } catch (e) {
-        console.error("Sync error:", e);
+        console.error("Master Sync error:", e);
       } finally {
         setIsCloudSyncing(false);
       }
@@ -64,8 +68,11 @@ export default function Home() {
 
   const handleLogout = () => setUser(null);
 
-  const handleAddBranch = (branchName: string, company: string, username: string) => {
+  const handleAddBranch = async (branchName: string, company: string, username: string) => {
     const newBranch: User = { id: `br_${Date.now()}`, username, role: UserRole.BRANCH, branchName, company };
+    
+    // Cloud persistent save
+    await supabase.from('User-Accounts').insert([newBranch]);
     setUsers(prev => [...prev, newBranch]);
   };
 
@@ -103,7 +110,7 @@ export default function Home() {
         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
           Cloud Infrastructure: 
           <span className={isCloudSyncing ? "text-amber-500 ml-2" : "text-green-500 ml-2"}>
-            {isCloudSyncing ? "Syncing Logic..." : "Active: Inventory • Warehouse • Supplier • Billing • Logistics"}
+            {isCloudSyncing ? "Synchronizing Enterprise Tables..." : "Active: Accounts • Inventory • Warehouse • Supplier • Logistics"}
           </span>
         </span>
       </div>

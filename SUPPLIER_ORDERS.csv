@@ -1,0 +1,3 @@
+id,branchId,type,quantityUnits,status,requestDate,billingInvoiceNo,amount,isPaid
+SUP-1700000000,2,Sales Invoice,10,DELIVERED,2023-11-01T10:00:00Z,INV-9981,45000,true
+SUP-1700000001,3,Collection Receipt,5,REQUESTED,2023-11-20T14:30:00Z,,,false

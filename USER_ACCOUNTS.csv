@@ -1,0 +1,5 @@
+id,username,role,branchName,company,tinNumber
+1,CW@Admin,ADMIN,,,
+2,manila_br,BRANCH,Megamall,PMCI,000-123-456-001
+3,cebu_br,BRANCH,Seaside Cebu,PMCI,000-123-456-002
+4,davao_br,BRANCH,SM Davao,PEHI,999-888-777-001

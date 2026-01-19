@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
-type TableOption = 'Cashwrap-Receipt' | 'Supplier-Orders' | 'Billing-Records' | 'Logistics-Tracking' | 'Warehouse-Inventory';
+type TableOption = 'Cashwrap-Receipt' | 'Supplier-Orders' | 'Billing-Records' | 'Logistics-Tracking' | 'Warehouse-Inventory' | 'User-Accounts';
 
 export default function CloudMonitor() {
   const [activeTable, setActiveTable] = useState<TableOption>('Cashwrap-Receipt');
@@ -52,7 +52,7 @@ export default function CloudMonitor() {
           </div>
           
           <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-slate-100 overflow-x-auto no-scrollbar">
-            {(['Cashwrap-Receipt', 'Supplier-Orders', 'Billing-Records', 'Logistics-Tracking', 'Warehouse-Inventory'] as TableOption[]).map((tab) => (
+            {(['Cashwrap-Receipt', 'Supplier-Orders', 'Billing-Records', 'Logistics-Tracking', 'Warehouse-Inventory', 'User-Accounts'] as TableOption[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTable(tab)}

@@ -1,0 +1,5 @@
+branchId,company,type,currentSeriesStart,currentSeriesEnd,lastUsedNumber,remainingStock,threshold
+2,PMCI,Sales Invoice,1000,5000,4850,150,500
+2,PMCI,Collection Receipt,100,500,300,200,250
+3,PMCI,Sales Invoice,5001,10000,6000,4000,5000
+4,PEHI,Service Invoice,20000,25000,24900,100,250

@@ -39,7 +39,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onUpdateUser,
   onDeleteUser
 }) => {
-  const [activeTab, setActiveTab] = useState<'home' | 'inventory' | 'supplier' | 'billing' | 'orders' | 'accounts'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'inventory' | 'supplier' | 'billing' | 'orders' | 'accounts' | 'data'>('home');
   
   // Modal & Form States
   const [showSupRequestModal, setShowSupRequestModal] = useState(false);
@@ -63,7 +63,48 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [newBranchUser, setNewBranchUser] = useState('');
 
   const getBranchName = (id: string) => users.find(u => u.id === id)?.branchName || 'Unknown Branch';
-  const getBranchLastSeries = (id: string, type: ReceiptType) => inventory.find(i => i.branchId === id && i.type === type)?.currentSeriesEnd || 0;
+
+  // --- CSV Export Logic ---
+  const downloadCSV = (filename: string, headers: string[], rows: any[]) => {
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => headers.map(header => {
+        const val = row[header] ?? '';
+        return typeof val === 'string' && val.includes(',') ? `"${val}"` : val;
+      }).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleExportTable = (tableName: string) => {
+    switch(tableName) {
+      case 'User-Accounts':
+        downloadCSV('USER_ACCOUNTS.csv', ['id', 'username', 'role', 'branchName', 'company', 'tinNumber'], users);
+        break;
+      case 'Cashwrap-Receipt':
+        downloadCSV('CASHWRAP_RECEIPT.csv', ['branchId', 'company', 'type', 'currentSeriesStart', 'currentSeriesEnd', 'lastUsedNumber', 'remainingStock', 'threshold'], inventory);
+        break;
+      case 'Warehouse-Inventory':
+        const whRows = Object.values(warehouse).flat();
+        downloadCSV('WAREHOUSE_INVENTORY.csv', ['branchId', 'type', 'totalUnits', 'receiptsPerUnit', 'unitLabel'], whRows);
+        break;
+      case 'Supplier-Orders':
+        downloadCSV('SUPPLIER_ORDERS.csv', ['id', 'branchId', 'type', 'quantityUnits', 'status', 'requestDate', 'billingInvoiceNo', 'amount', 'isPaid'], supplierOrders);
+        break;
+      case 'Logistics-Tracking':
+        downloadCSV('LOGISTICS_TRACKING.csv', ['orderId', 'branchId', 'type', 'quantityUnits', 'seriesStart', 'seriesEnd', 'status', 'dispatchDate'], orders);
+        break;
+    }
+  };
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-20">
@@ -75,7 +116,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           { id: 'supplier', label: 'Supplier' },
           { id: 'billing', label: 'Billing' },
           { id: 'orders', label: 'Logistics' },
-          { id: 'accounts', label: 'Accounts' }
+          { id: 'accounts', label: 'Accounts' },
+          { id: 'data', label: 'Cloud Export' }
         ].map((tab) => (
           <button 
             key={tab.id} 
@@ -87,12 +129,57 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         ))}
       </div>
 
+      {/* Cloud Export Tab */}
+      {activeTab === 'data' && (
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 max-w-4xl">
+          <div className="mb-8">
+             <h3 className="text-xl font-black text-slate-800 uppercase">Master Data Export</h3>
+             <p className="text-slate-500 text-sm mt-1">Download CSV templates and current data for Supabase cloud synchronization.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[
+              { name: 'User-Accounts', desc: 'System users and branch profiles', color: 'bg-blue-500' },
+              { name: 'Cashwrap-Receipt', desc: 'Branch live inventory stocks', color: 'bg-emerald-500' },
+              { name: 'Warehouse-Inventory', desc: 'Central warehouse bulk stock', color: 'bg-amber-500' },
+              { name: 'Supplier-Orders', desc: 'Bulk procurement and supplier logs', color: 'bg-indigo-500' },
+              { name: 'Logistics-Tracking', desc: 'In-transit and dispatch records', color: 'bg-rose-500' }
+            ].map((table) => (
+              <div key={table.name} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between group hover:border-indigo-200 transition-all">
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 ${table.color} rounded-2xl flex items-center justify-center text-white shadow-lg shadow-gray-100`}>
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                  </div>
+                  <div>
+                    <h4 className="font-black text-slate-900 text-sm uppercase">{table.name}</h4>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{table.desc}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => handleExportTable(table.name)}
+                  className="bg-slate-50 hover:bg-slate-900 hover:text-white text-slate-400 p-3 rounded-xl transition-all"
+                  title="Download CSV"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 bg-indigo-50 rounded-3xl p-6 border border-indigo-100">
+            <h5 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-2">Cloud Setup Tip</h5>
+            <p className="text-xs text-indigo-900/70 leading-relaxed italic">
+              Use these CSV files to seed your Supabase tables. Go to Supabase Dashboard > Table Editor > [Select Table] > Insert > Import Data from CSV. This ensures your cloud environment perfectly matches the local monitoring logic.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Warehouse Tab */}
       {activeTab === 'home' && (
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
           <h3 className="text-xl font-black text-slate-800 uppercase mb-6">Warehouse Stocks (Central)</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Fix: Property 'map' does not exist on type 'unknown'. Explicitly cast Object.entries result to WarehouseItem[] */}
             {Object.entries(warehouse).map(([branchId, items]) => (
               <div key={branchId} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
                 <h4 className="font-black text-slate-900 mb-4">{getBranchName(branchId)}</h4>
@@ -301,7 +388,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* Modals */}
+      {/* Modals remain same... */}
       {showSupRequestModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
           <div className="bg-white rounded-[32px] p-8 max-w-md w-full shadow-2xl">

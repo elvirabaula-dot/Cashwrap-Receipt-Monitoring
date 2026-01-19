@@ -1,7 +1,6 @@
-
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { User, UserRole, ReceiptInventory, ReceiptOrder, WarehouseStock, OrderStatus, ReceiptType, SupplierOrder, SupplierOrderStatus, WarehouseItem } from '../types';
 import { INITIAL_USERS, INITIAL_INVENTORY, INITIAL_ORDERS, INITIAL_WAREHOUSE } from '../constants';
 import Login from '../components/Login';
@@ -21,13 +20,12 @@ export default function Home() {
   const handleLogin = (username: string) => {
     const found = users.find(u => u.username === username);
     if (found) setUser(found);
-    else alert('Unauthorized: Credential not found.');
+    else alert('Access Denied: Invalid System Credentials.');
   };
 
   const handleLogout = () => setUser(null);
 
-  const handleAddBranch = async (branchName: string, company: string, username: string, tinNumber?: string) => {
-    setIsLoading(true);
+  const handleAddBranch = (branchName: string, company: string, username: string, tinNumber?: string) => {
     const newBranch: User = {
       id: `br_${Date.now()}`,
       username,
@@ -37,10 +35,34 @@ export default function Home() {
       tinNumber
     };
     setUsers(prev => [...prev, newBranch]);
-    setIsLoading(false);
   };
 
-  const shipOrder = (orderId: string, startSeries: number) => {
+  /**
+   * CRITICAL FIX: Cascading Deletion
+   * Removes user, inventory, warehouse, and pending orders in one transaction.
+   */
+  const handleDeleteBranch = (id: string) => {
+    if (confirm('CRITICAL ACTION: This will permanently purge this branch and ALL associated warehouse/inventory data. Proceed?')) {
+      setIsLoading(true);
+      
+      // Atomic state update
+      setTimeout(() => {
+        setUsers(prev => prev.filter(u => u.id !== id));
+        setInventory(prev => prev.filter(inv => inv.branchId !== id));
+        setWarehouse(prev => {
+          const updated = { ...prev };
+          delete updated[id];
+          return updated;
+        });
+        setOrders(prev => prev.filter(o => o.branchId !== id));
+        setSupplierOrders(prev => prev.filter(so => so.branchId !== id));
+        
+        setIsLoading(false);
+      }, 500);
+    }
+  };
+
+  const handleShipOrder = (orderId: string, startSeries: number) => {
     setOrders(prev => prev.map(o => {
       if (o.id === orderId) {
         const perUnit = o.type === ReceiptType.SALES_INVOICE ? 500 : 50;
@@ -78,20 +100,15 @@ export default function Home() {
           if (existing) {
             updatedItems = branchItems.map(i => i.type === o.type ? { ...i, totalUnits: i.totalUnits + o.quantityUnits } : i);
           } else {
-            const newItem: WarehouseItem = {
+            updatedItems = [...branchItems, {
               type: o.type,
               branchId: o.branchId,
               totalUnits: o.quantityUnits,
               receiptsPerUnit: o.type === ReceiptType.SALES_INVOICE ? 500 : 50,
-              unitLabel: (o.type === ReceiptType.SALES_INVOICE ? 'Box' : 'Booklet') as 'Box' | 'Booklet'
-            };
-            updatedItems = [...branchItems, newItem];
+              unitLabel: o.type === ReceiptType.SALES_INVOICE ? 'Box' : 'Booklet'
+            }];
           }
-          
-          return { 
-            ...curr, 
-            [o.branchId]: updatedItems 
-          };
+          return { ...curr, [o.branchId]: updatedItems };
         });
         return { ...o, ...details, status: SupplierOrderStatus.DELIVERED };
       }
@@ -102,16 +119,18 @@ export default function Home() {
   if (!user) return <Login onLogin={handleLogin} />;
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-slate-50">
       <Navbar user={user} onLogout={handleLogout} />
+      
       {isLoading && (
-        <div className="fixed inset-0 bg-white/50 backdrop-blur-sm z-[200] flex items-center justify-center">
-          <div className="flex flex-col items-center gap-2">
-            <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-xs font-bold text-indigo-600 animate-pulse">SYNCING WITH DATABASE...</p>
+        <div className="fixed inset-0 bg-white/60 backdrop-blur-md z-[300] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] animate-pulse">Syncing Enterprise Records...</p>
           </div>
         </div>
       )}
+
       <main className="flex-grow p-4 md:p-8 max-w-7xl mx-auto w-full">
         {user.role === UserRole.ADMIN ? (
           <AdminDashboard 
@@ -121,7 +140,7 @@ export default function Home() {
             warehouse={warehouse}
             supplierOrders={supplierOrders}
             onApprove={(id) => setOrders(p => p.map(o => o.id === id ? {...o, status: OrderStatus.APPROVED} : o))}
-            onShip={shipOrder}
+            onShip={handleShipOrder}
             onMarkDelivered={(id) => setOrders(p => p.map(o => o.id === id ? {...o, status: OrderStatus.DELIVERED} : o))}
             onReplenishWarehouse={() => {}} 
             onRequestFromSupplier={(b, t, u) => {
@@ -140,7 +159,7 @@ export default function Home() {
             onConfirmSupplierDelivery={handleConfirmSupplierDelivery}
             onAddBranch={handleAddBranch}
             onUpdateUser={(id, up) => setUsers(p => p.map(u => u.id === id ? {...u, ...up} : u))}
-            onDeleteUser={(id) => { if(confirm('Delete branch?')) setUsers(p => p.filter(u => u.id !== id)) }}
+            onDeleteUser={handleDeleteBranch}
           />
         ) : (
           <BranchDashboard 

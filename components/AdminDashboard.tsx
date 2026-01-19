@@ -92,11 +92,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
           <h3 className="text-xl font-black text-slate-800 uppercase mb-6">Warehouse Stocks (Central)</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Fix: Property 'map' does not exist on type 'unknown'. Explicitly cast Object.entries result to WarehouseItem[] */}
             {Object.entries(warehouse).map(([branchId, items]) => (
               <div key={branchId} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
                 <h4 className="font-black text-slate-900 mb-4">{getBranchName(branchId)}</h4>
                 <div className="space-y-3">
-                  {items.map((item, idx) => (
+                  {(items as WarehouseItem[]).map((item, idx) => (
                     <div key={idx} className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
                       <div>
                         <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">{item.type}</p>
@@ -362,7 +363,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       {deliveryInput && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[32px] p-8 max-w-sm w-full shadow-2xl">
+          <div className="bg-white rounded-[32px] p-8 max-sm w-full shadow-2xl">
             <h3 className="text-xl font-black mb-6 uppercase">Series Dispatch</h3>
             <input type="number" className="w-full bg-slate-50 p-4 rounded-2xl font-mono font-bold" placeholder="Start Series" value={deliveryInput.start} onChange={e => setDeliveryInput({...deliveryInput, start: e.target.value})} />
             <div className="flex gap-4 pt-4">

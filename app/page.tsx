@@ -17,30 +17,21 @@ export default function Home() {
   const [orders, setOrders] = useState<ReceiptOrder[]>(INITIAL_ORDERS);
   const [warehouse, setWarehouse] = useState<WarehouseStock>(INITIAL_WAREHOUSE);
   const [supplierOrders, setSupplierOrders] = useState<SupplierOrder[]>([]);
-  const [logistics, setLogistics] = useState<any[]>([]);
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
 
   useEffect(() => {
     const syncAllTables = async () => {
       setIsCloudSyncing(true);
       try {
-        // 1. Sync User Accounts
         const { data: userData } = await supabase.from('User-Accounts').select('*');
         if (userData && userData.length > 0) setUsers(userData as unknown as User[]);
 
-        // 2. Sync Branch Inventory
         const { data: invData } = await supabase.from('Cashwrap-Receipt').select('*');
         if (invData && invData.length > 0) setInventory(invData as unknown as ReceiptInventory[]);
 
-        // 3. Sync Supplier Orders
         const { data: supData } = await supabase.from('Supplier-Orders').select('*');
         if (supData && supData.length > 0) setSupplierOrders(supData as unknown as SupplierOrder[]);
 
-        // 4. Sync Logistics Tracking
-        const { data: logData } = await supabase.from('Logistics-Tracking').select('*');
-        if (logData && logData.length > 0) setLogistics(logData);
-
-        // 5. Sync Warehouse Stocks
         const { data: whData } = await supabase.from('Warehouse-Inventory').select('*');
         if (whData && whData.length > 0) {
           const grouped: WarehouseStock = {};
@@ -70,8 +61,6 @@ export default function Home() {
 
   const handleAddBranch = async (branchName: string, company: string, username: string) => {
     const newBranch: User = { id: `br_${Date.now()}`, username, role: UserRole.BRANCH, branchName, company };
-    
-    // Cloud persistent save
     await supabase.from('User-Accounts').insert([newBranch]);
     setUsers(prev => [...prev, newBranch]);
   };

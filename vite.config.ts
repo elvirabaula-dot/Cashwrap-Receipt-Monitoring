@@ -1,0 +1,1 @@
+// Not needed for Next.js project.

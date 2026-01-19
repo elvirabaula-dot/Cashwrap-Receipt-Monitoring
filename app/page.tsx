@@ -20,14 +20,31 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
 
-  // Example: Listen for Supabase auth changes or initial data fetch
+  // Sync with Supabase 'Cashwrap-Receipt' table on load
   useEffect(() => {
-    // In a real vercel deployment, you would fetch your tables here:
-    // const fetchData = async () => {
-    //   const { data } = await supabase.from('inventory').select('*');
-    //   if (data) setInventory(data);
-    // };
-    // fetchData();
+    const fetchCloudData = async () => {
+      setIsCloudSyncing(true);
+      try {
+        const { data, error } = await supabase
+          .from('Cashwrap-Receipt')
+          .select('*');
+        
+        if (error) {
+          console.error('[Cloud] Fetch error:', error.message);
+        } else if (data && data.length > 0) {
+          // If we have cloud data, we map it to our application state
+          // This assumes columns branchId, type, company, etc. exist in the table
+          setInventory(data as unknown as ReceiptInventory[]);
+          console.log('[Cloud] Inventory synced successfully.');
+        }
+      } catch (e) {
+        console.error('[Cloud] Connection failed.');
+      } finally {
+        setIsCloudSyncing(false);
+      }
+    };
+
+    fetchCloudData();
   }, []);
 
   const handleLogin = (username: string) => {
@@ -51,11 +68,8 @@ export default function Home() {
   };
 
   const handleDeleteBranch = (id: string) => {
-    if (confirm('CRITICAL ACTION: This will permanently purge this branch and ALL associated database records from Supabase. Proceed?')) {
+    if (confirm('CRITICAL ACTION: This will permanently purge this branch and ALL associated records. Proceed?')) {
       setIsLoading(true);
-      setIsCloudSyncing(true);
-      
-      // Simulate Supabase API Latency
       setTimeout(() => {
         setUsers(prev => prev.filter(u => u.id !== id));
         setInventory(prev => prev.filter(inv => inv.branchId !== id));
@@ -65,10 +79,7 @@ export default function Home() {
           return updated;
         });
         setOrders(prev => prev.filter(o => o.branchId !== id));
-        setSupplierOrders(prev => prev.filter(so => so.branchId !== id));
-        
         setIsLoading(false);
-        setIsCloudSyncing(false);
       }, 800);
     }
   };
@@ -133,21 +144,21 @@ export default function Home() {
     <div className="min-h-screen flex flex-col bg-slate-50">
       <Navbar user={user} onLogout={handleLogout} />
       
-      {(isLoading || isCloudSyncing) && (
-        <div className="fixed inset-0 bg-white/60 backdrop-blur-md z-[300] flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] animate-pulse">Syncing with Supabase...</p>
-          </div>
+      {isCloudSyncing && (
+        <div className="bg-indigo-600 px-4 py-1 text-center animate-pulse">
+          <p className="text-[9px] font-black text-white uppercase tracking-widest">
+            Cloud Sync in Progress...
+          </p>
         </div>
       )}
 
-      {/* Connection Status indicator */}
-      <div className="bg-indigo-600 px-4 py-1 text-center">
-        <p className="text-[9px] font-black text-white uppercase tracking-widest">
-          Cloud Status: <span className="text-green-300">Connected to Supabase Production</span>
-        </p>
-      </div>
+      {!isCloudSyncing && (
+        <div className="bg-slate-800 px-4 py-1 text-center">
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+            Connected to Table: <span className="text-indigo-400">Cashwrap-Receipt</span>
+          </p>
+        </div>
+      )}
 
       <main className="flex-grow p-4 md:p-8 max-w-7xl mx-auto w-full">
         {user.role === UserRole.ADMIN ? (

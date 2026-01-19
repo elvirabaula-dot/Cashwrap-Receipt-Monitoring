@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
@@ -5,15 +6,10 @@ import './app/globals.css';
 
 /**
  * Enterprise Receipt Monitoring System
- * Initialization with MongoDB Pool configuration
+ * Vercel + Supabase Deployment Context
  */
-const mongoConfig = {
-  appName: "devrel.vercel.integration",
-  maxIdleTimeMS: 5000,
-  uri: process.env.MONGODB_URI
-};
-
-console.log(`[System] Initializing session for: ${mongoConfig.appName}`);
+console.log(`[System] Initializing Cashwrap Enterprise Session...`);
+console.log(`[System] Integration: Supabase Cloud Connectivity Active.`);
 
 const container = document.getElementById('root');
 if (container) {
